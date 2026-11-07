@@ -17,6 +17,7 @@ A Python-based optimisation system that assigns university modules to computer l
 - [Example Output](#example-output)
 - [Constraints](#constraints)
 - [Objective Function](#objective-function)
+- [My role](#my-role)
 - [Authors](#authors)
 
 ---
@@ -243,6 +244,10 @@ Lower values indicate better utilisation of available laboratory resources.
 For this objective, each module is assigned independently and the greedy step already chooses its smallest feasible lab. The current single-module hill-climbing moves therefore cannot reduce the score further. Matching totals are expected for the supplied data; execution times vary by machine and run.
 
 ---
+
+## My role
+
+I am one of the credited members of the UKZN project team. This portfolio copy presents the team's Python implementation and documentation; all six project authors are listed below.
 
 ## Authors
 
