@@ -80,7 +80,7 @@ The hill climbing algorithm starts with the greedy solution and attempts to impr
 ## Project Structure
 
 ```text
-Campus-Lab-Space-Optimizer/
+Campus-Lab-Space-Optimiser/
 │
 ├── main.py
 ├── Labs.txt
@@ -147,13 +147,13 @@ The project only uses the built-in Python module:
 Clone the repository:
 
 ```bash
-git clone https://github.com/<your-username>/CampusLabSpaceOptimizer.git
+git clone https://github.com/DarianRobert/Campus-Lab-Space-Optimiser.git
 ```
 
 Navigate to the project folder:
 
 ```bash
-cd CampusLabSpaceOptimizer
+cd Campus-Lab-Space-Optimiser
 ```
 
 ---
@@ -219,7 +219,9 @@ Local Search Time: 0.000036 seconds
 
 ## Constraints
 
-The optimiser guarantees that:
+Capacity is checked for each module separately. Multiple modules may use the same lab; the program does not schedule time slots or check simultaneous room occupancy. Input files have no header row and each module specifies one required software name. If no compatible lab exists, the program stops with an error.
+
+For a successful allocation:
 
 - Every module is assigned to exactly one laboratory.
 - Laboratory capacity is never exceeded.
@@ -238,6 +240,8 @@ Total Unused Seats = Σ (Laboratory Capacity − Module Students)
 
 Lower values indicate better utilisation of available laboratory resources.
 
+For this objective, each module is assigned independently and the greedy step already chooses its smallest feasible lab. The current single-module hill-climbing moves therefore cannot reduce the score further. Matching totals are expected for the supplied data; execution times vary by machine and run.
+
 ---
 
 ## Authors
@@ -250,3 +254,6 @@ Developed as part of a university optimisation project by:
 - Keolin Naicker
 - Lokadi Naicker
 - Preolan Narainsamy
+
+
+[Original team repository](https://github.com/ArjunRamphal/CampusLabSpaceOptimizer) · [My portfolio](https://darianrobert.github.io/)
