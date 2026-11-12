@@ -137,9 +137,7 @@ M4,Machine Learning,55,Python
 - Python 3.10 or newer
 - No external libraries required
 
-The project only uses the built-in Python module:
-
-- `time`
+The program uses only the Python standard library.
 
 ---
 
@@ -167,11 +165,17 @@ Ensure the following files are in the same directory:
 - `Labs.txt`
 - `Modules.txt`
 
+Default input paths are resolved beside `main.py`, so the program also works when launched from another directory. Blank lines and quoted CSV names are supported; invalid rows report the file and line number.
+
 Run the program using:
 
 ```bash
 python main.py
+# Optional alternative inputs
+python main.py --labs path/to/Labs.txt --modules path/to/Modules.txt
 ```
+
+Run the regression checks with `python -m unittest discover -s tests -v`.
 
 ---
 

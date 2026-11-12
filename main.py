@@ -1,172 +1,156 @@
+"""Assign modules to compatible labs using greedy search and hill climbing."""
+
+import argparse
+import csv
 import time
+from pathlib import Path
+
+
+def read_records(filename):
+    """Read the four-column input format and report errors with line numbers."""
+    records = {}
+    with open(filename, newline="", encoding="utf-8-sig") as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if not row or all(not value.strip() for value in row):
+                continue
+            context = f"{filename}:{reader.line_num}"
+            if len(row) != 4 or any(not value.strip() for value in row):
+                raise ValueError(f"{context}: expected four non-empty columns")
+            record_id, name, count, software = (value.strip() for value in row)
+            if record_id in records:
+                raise ValueError(f"{context}: duplicate ID {record_id!r}")
+            try:
+                count = int(count)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{context}: capacity/student count must be an integer"
+                ) from exc
+            if count < 0:
+                raise ValueError(
+                    f"{context}: capacity/student count cannot be negative"
+                )
+            records[record_id] = (name, count, software)
+    if not records:
+        raise ValueError(f"{filename}: no records found")
+    return records
+
 
 def load_labs(filename):
-    labs = {}
+    return {
+        lab_id: {"name": name, "capacity": capacity, "software": set(software.split())}
+        for lab_id, (name, capacity, software) in read_records(filename).items()
+    }
 
-    with open(filename, "r") as file:
-        for line in file:
-            parts = line.strip().split(",")
-
-            lab_id = parts[0]
-            name = parts[1]
-            capacity = int(parts[2])
-            software = set(parts[3].split())
-
-            labs[lab_id] = {
-                "name": name,
-                "capacity": capacity,
-                "software": software
-            }
-
-    return labs
 
 def load_modules(filename):
-    modules = {}
+    return {
+        module_id: {"name": name, "students": students, "software": software}
+        for module_id, (name, students, software) in read_records(filename).items()
+    }
 
-    with open(filename, "r") as file:
-        for line in file:
-            parts = line.strip().split(",")
 
-            module_id = parts[0]
-            name = parts[1]
-            students = int(parts[2])
-            software = parts[3]
+def is_feasible(module_id, lab_id, modules, labs):
+    module, lab = modules[module_id], labs[lab_id]
+    return (
+        module["students"] <= lab["capacity"] and module["software"] in lab["software"]
+    )
 
-            modules[module_id] = {
-                "name": name,
-                "students": students,
-                "software": software
-            }
 
-    return modules
+def total_unused_seats(assignment, modules, labs):
+    return sum(
+        labs[lab_id]["capacity"] - modules[module_id]["students"]
+        for module_id, lab_id in assignment.items()
+    )
 
-def is_feasible(module_id, lab_id):
-    module = modules[module_id]
-    lab = labs[lab_id]
 
-    if module["students"] > lab["capacity"]:
-        return False
-
-    if module["software"] not in lab["software"]:
-        return False
-
-    return True
-
-def total_unused_seats(assignment):
-    total = 0
-    for module_id, lab_id in assignment.items():
-        students = modules[module_id]["students"]
-        capacity = labs[lab_id]["capacity"]
-        total += capacity - students
-    return total
-
-def greedy_assignment():
+def greedy_assignment(modules, labs):
     assignment = {}
-
-    sorted_modules = sorted(modules.keys(),
-                            key=lambda m: modules[m]["students"],
-                            reverse=True)
-
+    sorted_modules = sorted(modules, key=lambda m: modules[m]["students"], reverse=True)
     for module_id in sorted_modules:
-        feasible_labs = []
-
-        for lab_id in labs:
-            if is_feasible(module_id, lab_id):
-                feasible_labs.append(lab_id)
-
+        feasible_labs = [
+            lab_id for lab_id in labs if is_feasible(module_id, lab_id, modules, labs)
+        ]
         if not feasible_labs:
-            raise Exception(f"No feasible lab found for {module_id}")
-
-        best_lab = min(feasible_labs,
-                       key=lambda l: labs[l]["capacity"])
-
-        assignment[module_id] = best_lab
-
+            raise ValueError(f"No feasible lab found for {module_id}")
+        assignment[module_id] = min(
+            feasible_labs, key=lambda lab: labs[lab]["capacity"]
+        )
     return assignment
 
-def local_search(initial_assignment):
+
+def local_search(initial_assignment, modules, labs):
+    """Accept single-module moves that reduce the total unused seats."""
     current_assignment = initial_assignment.copy()
-    improved = True
-
-    while improved:
+    current_score = total_unused_seats(current_assignment, modules, labs)
+    while True:
         improved = False
-
         for module_id in modules:
             current_lab = current_assignment[module_id]
-
             for lab_id in labs:
-                if lab_id == current_lab:
+                if lab_id == current_lab or not is_feasible(
+                    module_id, lab_id, modules, labs
+                ):
                     continue
-
-                if not is_feasible(module_id, lab_id):
-                    continue
-
-                new_assignment = current_assignment.copy()
-                new_assignment[module_id] = lab_id
-
-                if total_unused_seats(new_assignment) < total_unused_seats(current_assignment):
-                    current_assignment = new_assignment
+                # Only this module's capacity changes in a single-module move.
+                new_score = (
+                    current_score
+                    + labs[lab_id]["capacity"]
+                    - labs[current_lab]["capacity"]
+                )
+                if new_score < current_score:
+                    current_assignment[module_id] = lab_id
+                    current_score = new_score
                     improved = True
                     break
-
             if improved:
                 break
+        if not improved:
+            return current_assignment
 
-    return current_assignment
 
-def print_solution(title, assignment):
+def print_solution(title, assignment, modules, labs):
     print(title)
-
-    # Group modules by lab
     lab_groups = {lab_id: [] for lab_id in labs}
-
     for module_id, lab_id in assignment.items():
         lab_groups[lab_id].append(module_id)
-
-    total_unused = 0
-
     for lab_id, module_list in lab_groups.items():
-        lab = labs[lab_id]
-
-        print(f"\n{lab_id} - {lab['name']}")
-
+        print(f"\n{lab_id} - {labs[lab_id]['name']}")
         if not module_list:
             print("  No modules assigned.")
             continue
-
         for module_id in module_list:
             module = modules[module_id]
-            unused = lab["capacity"] - module["students"]
-            total_unused += unused
-
+            unused = labs[lab_id]["capacity"] - module["students"]
             print(f"  {module_id} ({module['name']})")
             print(f"     Students: {module['students']}")
             print(f"     Unused Seats: {unused}")
+    print(f"\nTOTAL UNUSED SEATS: {total_unused_seats(assignment, modules, labs)}\n")
 
-    print("\n")
-    print(f"TOTAL UNUSED SEATS: {total_unused}")
-    print("\n")
 
-if __name__ == "__main__":
-
-    labs = load_labs("Labs.txt")
-    modules = load_modules("Modules.txt")
-
-    start_greedy = time.perf_counter()
-    greedy_solution = greedy_assignment()
-    end_greedy = time.perf_counter()
-
-    greedy_time = end_greedy - start_greedy
-
-    start_local = time.perf_counter()
-    improved_solution = local_search(greedy_solution)
-    end_local = time.perf_counter()
-
-    local_time = end_local - start_local
-
-    print_solution("GREEDY SOLUTION", greedy_solution)
-    print_solution("IMPROVED SOLUTION", improved_solution)
-
+def main(argv=None):
+    base = Path(__file__).resolve().parent
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--labs", type=Path, default=base / "Labs.txt")
+    parser.add_argument("--modules", type=Path, default=base / "Modules.txt")
+    args = parser.parse_args(argv)
+    try:
+        labs = load_labs(args.labs)
+        modules = load_modules(args.modules)
+        start = time.perf_counter()
+        greedy_solution = greedy_assignment(modules, labs)
+        greedy_time = time.perf_counter() - start
+        start = time.perf_counter()
+        improved_solution = local_search(greedy_solution, modules, labs)
+        local_time = time.perf_counter() - start
+    except (OSError, ValueError, csv.Error) as exc:
+        parser.exit(1, f"Error: {exc}\n")
+    print_solution("GREEDY SOLUTION", greedy_solution, modules, labs)
+    print_solution("IMPROVED SOLUTION", improved_solution, modules, labs)
     print("Processing Times")
     print(f"Greedy Algorithm Time: {greedy_time:.6f} seconds")
     print(f"Local Search Time: {local_time:.6f} seconds")
+
+
+if __name__ == "__main__":
+    main()
